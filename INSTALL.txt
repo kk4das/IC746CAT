@@ -1,0 +1,1 @@
+Put the "IC746CAT" folder in your Arduino "libraries" folder.
