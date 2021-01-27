@@ -16,7 +16,7 @@ The following functions are implemented
 * Mode GET/SET (USB, LSB only)
 * S-meter level GET
 
-All other functions are coded to give correct reasoable responses to other CAT commands.
+All other functions are coded to give correct reasonable responses to other CAT commands.
 
 I have found this set of functions to be all that is required for the majorit of logging programs and digital modes such as the WSJTX suite and FLDIGI.
 
@@ -89,7 +89,7 @@ radio.check()
 
 See the example sketch for more examples.
 
-A word on the example sketch.  It is configured to write debug output to a ILI9341 TFT using the Adafruit libraries, because that is what I had on the bench. It should be straightforward to modify it to use SoftwareSerial or other output device of your choice.
+A word on the example sketch.  It is configured to write debug output to a ILI9341 TFT using the Adafruit libraries, because that is what I had on the bench. It should be straightforward to modify it to use SoftwareSerial or other output device of your choice.  There is also debug code in the library itself to send all received CAT command to a SoftwareSerial port.
 
 ## Author & contributors ##
 
@@ -97,6 +97,6 @@ The only author is Dean Souleles, KK4DAS, reachable at kk4das@gmail.com.
 
 ## Where to download the latest version? ##
 
-Always download the latest version from the [github repository](https://github.com/KK4DAS/IC746/)
+Always download the latest version from the [github repository](https://github.com/KK4DAS/IC746CAT/)
 
 
