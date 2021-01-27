@@ -55,10 +55,8 @@ The libary uses the the hardware serial port "Serial" to communcate with the CAT
 
 To use the library you must code a few custom call back functions and register them with the library.  Your callbacks will require specific parameters and return values based on the particular command.  Your functions will be called by the CAT libary upon receipt of the relevant CAT commands.  Your functions need to take whatever actions are necessary to implement the command and where requested, return the appropriate value to the library for transmission back to the CAT controller.
 
-# Here is a code sample:
-
 in your sketch:
-
+```C++
 #include <IC746.h>
 
 IC746 radio = IC746();
@@ -77,16 +75,18 @@ void catSetVFO(byte vfo) {
     activeVFO = CAT_VFO_B;
   }
 }
+```
 
 In your setup() function register your callbacks and start the interface:
-
+```C++
 radio.addCATGetFreq(catGetFreq);
 radio.addCATVSet(catSetVFO);
 radio.begin();
-
+```
 In your main loop call the check() function:
+```C++
 radio.check()
-
+```
 See the example sketch for more examples.
 
 A word on the example sketch.  It is configured to write debug output to a ILI9341 TFT using the Adafruit libraries, because that is what I had on the bench. It should be straightforward to modify it to use SoftwareSerial or other output device of your choice.  There is also debug code in the library itself to send all received CAT command to a SoftwareSerial port.
