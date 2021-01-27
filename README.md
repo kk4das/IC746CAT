@@ -61,7 +61,7 @@ in your sketch:
 
 IC746 radio = IC746();
 
-long frequency = 7200000;
+long frequency = 7200000L;
 byte activVFO = CAT_VFO_A; 
 
 long catGetFreq() {
