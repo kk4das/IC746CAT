@@ -1,6 +1,6 @@
-# ICOM IC-746 CAT control emulation for Arduino #
+# ICOM IC-746 CAT Control Emulation for Arduino #
 
-This library give support to any sketch to act as an ICOM IC-746 radio once you configure it correctly.
+This library implements the ICOM CI-V CAT protocol emulating an IC-746 transceiver.  The libary has been tested on a homebrew transceiver of my creation.  It has been demonstrated to work with an Arduino Nano and Arduino Nano Every although it should work with any MCU with a serial port.  It works with WSJTX in all modes as well as the fldigi suite, Ham Radio Delux, the hamlib rigclt command line, and the CatBkt universal rig AT conntrol tool.  It should work with any hamlib enabled software.
 
 Documentation for the ICOM IC-746 may be found here:
 
@@ -32,6 +32,10 @@ So far we have tested support for the following CAT capable software:
 * Ham Radio Deluxe
 
 If you use find this library does not work with any particular CAT enabled software please let me know via the "Issues" tab on Github.
+
+## Known limitations ##
+
+Split frequency handling in WSJTX does not work as expected.  The work-around is to configure WSJTX Split for either NONE or "Fake it".  Split functionality has been tested and works as expected using CatBkt.  
 
 ## Tips for developers: ##
 
