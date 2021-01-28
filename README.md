@@ -1,6 +1,6 @@
 # ICOM IC-746 CAT Control Emulation for Arduino #
 
-This library implements the ICOM CI-V CAT protocol emulating an IC-746 transceiver.  The libary has been tested on a homebrew transceiver of my creation.  It has been demonstrated to work with an Arduino Nano and Arduino Nano Every although it should work with any MCU with a serial port.  It works with WSJTX in all modes as well as the fldigi suite, Ham Radio Delux, the hamlib rigclt command line, and the CatBkt universal rig AT conntrol tool.  It should work with any hamlib enabled software.
+This library implements the ICOM CI-V CAT protocol emulating an IC-746 transceiver.  The library has been tested on a homebrew transceiver of my creation.  It has been demonstrated to work with an Arduino Nano and Arduino Nano Every although it should work with any MCU with a serial port.  It works with WSJTX in all modes as well as the fldigi suite, Ham Radio Deluxe, the hamlib rigclt command line, and the CatBkt universal rig CAT control tool.  It should work with any hamlib enabled software.
 
 Documentation for the ICOM IC-746 may be found here:
 
