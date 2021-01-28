@@ -7,7 +7,7 @@ Documentation for the ICOM IC-746 may be found here:
 https://www.icomamerica.com/en/downloads/default.aspx?Category=42 
 
 The following functions are implemented
-* PTT (ON/OFF)
+* PTT (SET ON/OFF) or GET PTT state
 * VFO A/B Selection
 * VFO Swap
 * VFO Set A=B
