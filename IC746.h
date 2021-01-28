@@ -136,24 +136,152 @@ typedef void (*FuncPtrLong)(long);
 */
 class IC746 {
   public:
-    // we have two kind of constructors here
+    // Constructors
     void begin(); // default for the radio 9600 @ 8N2
     void begin(long baudrate, int mode); // custom baudrate and mode
+    
     void check(); // periodic check for serial commands
 
-    // the functions that links the lib with user supplied functions
+    ///////////////////////////////////////////////////////////////////////////////////////////
+    // Callback Functions that link the library to user supplied functions
+    ///////////////////////////////////////////////////////////////////////////////////////////
+
+    // addCATPtt - registers a funtion that is called by the cat libary on resceipt of a PTT
+    // command to put the rig into either Tx or Rx
+    //
+    // Example
+    // void catSplit(boolean ptt) {
+    //   if (ptt) {
+    //    logic to put rig into Tx
+    //   } else {
+    //    logic to put the rig into Rx
+    //   }
+    // addCATPtt(catPtt);
     void addCATPtt(void (*)(boolean));
+
+    // addCATSplit - registers a funtion that is called by the cat libary on resceipt of a SPLIT
+    // command to turn split mode on or off
+    //
+    // Example
+    // void catSplit(boolean split) {
+    //   if (split) {
+    //    logic to turn on split mode
+    //   } else {
+    //    logic to turn off split mode
+    // }
+    // addCATsplit(catSplit);  
     void addCATsplit(void (*)(boolean));
+    
+
+    // addCATAtoB - registers a funtion that is called by the cat libary on resceipt of an A=B
+    // command to make both VFOs equal
+    //
+    // Example
+    // void cataAtoB() {
+    //    logic to make the alternate VFO the same as the Active VFO
+    // }
+    // addCATAtoB(catAtoB);      
     void addCATAtoB(void (*)(void));
+
+    
+    // addCATSwapVfo - registers a funtion that is called by the cat libary on resceipt of a toggle VFO
+    // command to switch VFO A and B
+    //
+    // Example
+    // void catSwapVfo() {
+    //    logic to swap VFO A and B
+    // }
+    // addCATSwapVfo(catSwapVFO);   
     void addCATSwapVfo(void (*)(void));
+    
+    // addCATFSet - registers a funtion that is called by the cat libary on resceipt of SET FREQUENCY
+    // command to set the active VFO frequency
+    //
+    // Example
+    // void catSetFreq(long freq) {
+    //    logic to tune the radio to freq
+    // }
+    // addCATFSet(catSetFreq); 
     void addCATFSet(void (*)(long));
+    
+    // addCATMSet - registers a funtion that is called by the cat libary on resceipt of SET MODE
+    // command to set the active VFO MODE (USB or LSB)
+    //
+    // Example
+    // void catSetMode(byte mode) {
+    //   if (mode == CAT_MODE_LSB) {
+    //      logic to set rig to LSB
+    //   } else {
+    //    logic to set rig to USB
+    //   |
+    // }
+    // addCATFSet(catMode); 
     void addCATMSet(void (*)(byte));
+    
+
+    // addCATVSet - registers a funtion that is called by the cat libary on resceipt of SET VFO
+    // command to set the active VFO to VFOA or VFOB)
+    //
+    // Example
+    // void catSetVfo(byte vfo) {
+    //   if (vfo == CAT_VFO_A) {
+    //      logic to make VFO A active
+    //   } else {
+    //    logic to mmake VFO B activeB
+    //   |
+    // }
+    // addCATFVet(catSetVfo); 
     void addCATVSet(void (*)(byte));
+    
+    // addCATGetFreq - registers a funtion that is called by the cat libary on resceipt of READ FREQUENCY
+    // command. The user functuion must return the current frequency as a long
+    //
+    // Example
+    // long catGetFreq() {
+    //   long freq = logic to tune the radio to freq
+    //   return freq;
+    // }
+    // addCATGetFreq(catGetFreq); 
     void addCATGetFreq(long (*)(void));
+    
+
+    // addCATGetMode - registers a funtion that is called by the cat libary on resceipt of READ MODE
+    // command. The user functuion must return the current MODE USB or LSB as a byte
+    //
+    // Example
+    // byte catGetMode() {
+    //   byte mode = logic set mode to CAT_MODE_USB or CAT_MODE_LSB
+    //   return mode;
+    // }
+    // addCATGetMode(catGetFreq); 
     void addCATGetMode(byte (*)(void));
+
+
+    // addCATGetPtt- registers a funtion that is called by the cat libary on resceipt of READ PTT
+    // command. The user functuion must return the current PTT state CAT_PTT_TX or CAT_PTT_RX as a byte
+    //
+    // Example
+    // byte catGetTxRx() {
+    //   byte ptt = logic set mode to CAT_PTT_TX or CAT_PTT_TX
+    //   return ptt;
+    // }
+    // addCATGetPtt(catGetTxRx); 
     void addCATGetPtt(boolean (*)(void));
+    
+
+    // addCATGetSmeter - registers a funtion that is called by the cat libary on resceipt of READ SMETER
+    // command. The user functuion must return the current S-meter reading as byte
+    // S-meter values are in the range 0-16, 0-9 are S0-S9, 10-16 are S9+10 thru S9+60
+    //
+    // Example
+    // byte catGetSMeter() {
+    //   byte smeter = logic set smeter to a number from 0-16
+    //   return smeter;
+    // }
+    // addCATGetSmeter(catGetSMeter); 
     void addCATSMeter(byte (*)(void));
 
+    // Set enabled to false to stop processing CAT commands
     boolean enabled     = true;
 
   private:
