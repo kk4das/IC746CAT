@@ -143,10 +143,14 @@ class IC746 {
     void check(); // periodic check for serial commands
 
     ///////////////////////////////////////////////////////////////////////////////////////////
-    // Callback Functions that link the library to user supplied functions
+    // Methods - callback functions that link the library to user supplied functions
     ///////////////////////////////////////////////////////////////////////////////////////////
-
-    // addCATPtt - registers a funtion that is called by the cat libary on resceipt of a PTT
+    //
+    // Examples below assume you include the header file and declare the radio object
+    // #include <IC746.h>
+    // IC746 radio = IC746();
+    // 
+    //addCATPtt - registers a funtion that is called by the cat libary on resceipt of a PTT
     // command to put the rig into either Tx or Rx
     //
     // Example
@@ -156,7 +160,7 @@ class IC746 {
     //   } else {
     //    logic to put the rig into Rx
     //   }
-    // addCATPtt(catPtt);
+    // radio.addCATPtt(catPtt);
     void addCATPtt(void (*)(boolean));
 
     // addCATSplit - registers a funtion that is called by the cat libary on resceipt of a SPLIT
@@ -169,7 +173,7 @@ class IC746 {
     //   } else {
     //    logic to turn off split mode
     // }
-    // addCATsplit(catSplit);  
+    // radio.addCATsplit(catSplit);  
     void addCATsplit(void (*)(boolean));
     
 
@@ -180,7 +184,7 @@ class IC746 {
     // void cataAtoB() {
     //    logic to make the alternate VFO the same as the Active VFO
     // }
-    // addCATAtoB(catAtoB);      
+    // radio.addCATAtoB(catAtoB);      
     void addCATAtoB(void (*)(void));
 
     
@@ -191,7 +195,7 @@ class IC746 {
     // void catSwapVfo() {
     //    logic to swap VFO A and B
     // }
-    // addCATSwapVfo(catSwapVFO);   
+    // radio.addCATSwapVfo(catSwapVFO);   
     void addCATSwapVfo(void (*)(void));
     
     // addCATFSet - registers a funtion that is called by the cat libary on resceipt of SET FREQUENCY
@@ -201,7 +205,7 @@ class IC746 {
     // void catSetFreq(long freq) {
     //    logic to tune the radio to freq
     // }
-    // addCATFSet(catSetFreq); 
+    // radio.addCATFSet(catSetFreq); 
     void addCATFSet(void (*)(long));
     
     // addCATMSet - registers a funtion that is called by the cat libary on resceipt of SET MODE
@@ -215,7 +219,7 @@ class IC746 {
     //    logic to set rig to USB
     //   |
     // }
-    // addCATFSet(catMode); 
+    // radio.addCATFSet(catMode); 
     void addCATMSet(void (*)(byte));
     
 
@@ -230,7 +234,7 @@ class IC746 {
     //    logic to mmake VFO B activeB
     //   |
     // }
-    // addCATFVet(catSetVfo); 
+    // radio.addCATFVet(catSetVfo); 
     void addCATVSet(void (*)(byte));
     
     // addCATGetFreq - registers a funtion that is called by the cat libary on resceipt of READ FREQUENCY
@@ -241,7 +245,7 @@ class IC746 {
     //   long freq = logic to tune the radio to freq
     //   return freq;
     // }
-    // addCATGetFreq(catGetFreq); 
+    // radio.addCATGetFreq(catGetFreq); 
     void addCATGetFreq(long (*)(void));
     
 
@@ -253,7 +257,7 @@ class IC746 {
     //   byte mode = logic set mode to CAT_MODE_USB or CAT_MODE_LSB
     //   return mode;
     // }
-    // addCATGetMode(catGetFreq); 
+    // radio.addCATGetMode(catGetFreq); 
     void addCATGetMode(byte (*)(void));
 
 
@@ -265,7 +269,7 @@ class IC746 {
     //   byte ptt = logic set mode to CAT_PTT_TX or CAT_PTT_TX
     //   return ptt;
     // }
-    // addCATGetPtt(catGetTxRx); 
+    // radio.addCATGetPtt(catGetTxRx); 
     void addCATGetPtt(boolean (*)(void));
     
 
@@ -278,7 +282,7 @@ class IC746 {
     //   byte smeter = logic set smeter to a number from 0-16
     //   return smeter;
     // }
-    // addCATGetSmeter(catGetSMeter); 
+    // radio.addCATGetSmeter(catGetSMeter); 
     void addCATSMeter(byte (*)(void));
 
     // Set enabled to false to stop processing CAT commands
