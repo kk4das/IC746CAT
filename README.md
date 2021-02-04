@@ -18,7 +18,9 @@ The following functions are implemented
 
 All other functions are coded to give correct reasonable responses to other CAT commands.
 
-I have found this set of functions to be all that is required for the majorit of logging programs and digital modes such as the WSJTX suite and FLDIGI.
+I have found this set of functions to be all that is required for the majority of logging programs and digital modes such as the WSJTX suite and FLDIGI.
+
+V1.1 - fixes various protocol issues that prevented OmniRig from working correctly and calibrated the S-Meter returns to better match ICOM peorformance.
 
 
 ## Supported software ##
