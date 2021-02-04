@@ -1,6 +1,11 @@
 /*************************************************************************
    IC746 CAT Library, by KK4DAS, Dean Souleles
-   11/24/2021
+   V1.1 2/3/202 
+      - various fixes, now works properly with OmniRig and flrig
+      - smeter now returns proper BCD code - calibrated to emulate ICOM responses
+      
+   V1.0 1/24/2021
+      - Initial build
 
    Inspired by: FT857D CAT Library, by Pavel Milanes, CO7WT, pavelmc@gmail.com
 
@@ -25,9 +30,9 @@
 #ifndef IC746_h
 #define IC746_h
 
-#include "Arduino.h"
+#include <Arduino.h>
 
-
+#define CAT_VER "1.1"
 /*
    CAT Command definitions from IC746 Manual
 */
@@ -58,13 +63,13 @@
 #define CAT_SET_OFFSET      0x0D  // Not implemented
 #define CAT_SCAN            0x0E  // Not implemented
 #define CAT_SPLIT           0x0F
-#define CAT_SET_STEP        0x10  // Not implemented
-#define CAT_ATT             0x11  // Not implemented
-#define CAT_SEL_ANT         0x12  // Not implemented
+#define CAT_SET_RD_STEP     0x10  // Not implemented
+#define CAT_SET_RD_ATT      0x11  // Not implemented
+#define CAT_SET_RD_ANT      0x12  // Not implemented
 #define CAT_SET_UT102       0x13  // Not implemented
-#define CAT_SET_PARAMS1     0x14  // Not implemented
+#define CAT_SET_RD_PARAMS1  0x14  // Not implemented
 #define CAT_READ_SMETER     0x15  // Only impemented read S-Meter
-#define CAT_SET_PARAMS2     0x16  // Not implemented (various settings)
+#define CAT_SET_RD_PARAMS2  0x16  // Not implemented (various settings)
 #define CAT_READ_ID         0x19  
 #define CAT_MISC            0x1A  // Only implemented sub-command 3 Read IF filter 
 #define CAT_SET_TONE        0x1B  // Not implemented (VHF/UHF)
@@ -82,6 +87,7 @@
 #define CAT_MODE_FM         0x05 // Not implemented
 #define CAT_MODE_CW_R       0x06 // Not implemented
 #define CAT_MODE_RTTY_R     0x07 // Not implemented
+#define CAT_MODE_FILTER1    0x01 // Required for "read mode"
 
 // VFO Subcommand
 #define CAT_VFO_A           0x00
@@ -92,9 +98,9 @@
 // Split Subcommand
 #define CAT_SPLIT_OFF       0x00
 #define CAT_SPLIT_ON        0x01
-#define CAT_SIMPLE_DUP      0x02 // Not implemented
-#define CAT_MINUS_DUP       0x03 // Not implemented
-#define CAT_PLUS_DUP        0x04 // Not implemented
+#define CAT_SIMPLE_DUP      0x10 // Not implemented
+#define CAT_MINUS_DUP       0x11 // Not implemented
+#define CAT_PLUS_DUP        0x12 // Not implemented
 
 // S-Meter / Squelch Subcommand
 #define CAT_READ_SUB_SQL    0x01 // Not implemented (squelch)
@@ -122,6 +128,8 @@
 
 
 
+
+
 // defining the funtion type by params
 typedef void (*FuncPtrVoid)(void);
 typedef long (*FuncPtrVoidLong)(void);
@@ -136,156 +144,24 @@ typedef void (*FuncPtrLong)(long);
 */
 class IC746 {
   public:
-    // Constructors
+    // we have two kind of constructors here
     void begin(); // default for the radio 9600 @ 8N2
     void begin(long baudrate, int mode); // custom baudrate and mode
-    
     void check(); // periodic check for serial commands
 
-    ///////////////////////////////////////////////////////////////////////////////////////////
-    // Methods - callback functions that link the library to user supplied functions
-    ///////////////////////////////////////////////////////////////////////////////////////////
-    //
-    // Examples below assume you include the header file and declare the radio object
-    // #include <IC746.h>
-    // IC746 radio = IC746();
-    // 
-    //addCATPtt - registers a funtion that is called by the cat libary on resceipt of a PTT
-    // command to put the rig into either Tx or Rx
-    //
-    // Example
-    // void catSplit(boolean ptt) {
-    //   if (ptt) {
-    //    logic to put rig into Tx
-    //   } else {
-    //    logic to put the rig into Rx
-    //   }
-    // radio.addCATPtt(catPtt);
+    // the functions that links the lib with user supplied functions
     void addCATPtt(void (*)(boolean));
-
-    // addCATSplit - registers a funtion that is called by the cat libary on resceipt of a SPLIT
-    // command to turn split mode on or off
-    //
-    // Example
-    // void catSplit(boolean split) {
-    //   if (split) {
-    //    logic to turn on split mode
-    //   } else {
-    //    logic to turn off split mode
-    // }
-    // radio.addCATsplit(catSplit);  
     void addCATsplit(void (*)(boolean));
-    
-
-    // addCATAtoB - registers a funtion that is called by the cat libary on resceipt of an A=B
-    // command to make both VFOs equal
-    //
-    // Example
-    // void cataAtoB() {
-    //    logic to make the alternate VFO the same as the Active VFO
-    // }
-    // radio.addCATAtoB(catAtoB);      
     void addCATAtoB(void (*)(void));
-
-    
-    // addCATSwapVfo - registers a funtion that is called by the cat libary on resceipt of a toggle VFO
-    // command to switch VFO A and B
-    //
-    // Example
-    // void catSwapVfo() {
-    //    logic to swap VFO A and B
-    // }
-    // radio.addCATSwapVfo(catSwapVFO);   
     void addCATSwapVfo(void (*)(void));
-    
-    // addCATFSet - registers a funtion that is called by the cat libary on resceipt of SET FREQUENCY
-    // command to set the active VFO frequency
-    //
-    // Example
-    // void catSetFreq(long freq) {
-    //    logic to tune the radio to freq
-    // }
-    // radio.addCATFSet(catSetFreq); 
     void addCATFSet(void (*)(long));
-    
-    // addCATMSet - registers a funtion that is called by the cat libary on resceipt of SET MODE
-    // command to set the active VFO MODE (USB or LSB)
-    //
-    // Example
-    // void catSetMode(byte mode) {
-    //   if (mode == CAT_MODE_LSB) {
-    //      logic to set rig to LSB
-    //   } else {
-    //    logic to set rig to USB
-    //   |
-    // }
-    // radio.addCATFSet(catMode); 
     void addCATMSet(void (*)(byte));
-    
-
-    // addCATVSet - registers a funtion that is called by the cat libary on resceipt of SET VFO
-    // command to set the active VFO to VFOA or VFOB)
-    //
-    // Example
-    // void catSetVfo(byte vfo) {
-    //   if (vfo == CAT_VFO_A) {
-    //      logic to make VFO A active
-    //   } else {
-    //    logic to mmake VFO B activeB
-    //   |
-    // }
-    // radio.addCATFVet(catSetVfo); 
     void addCATVSet(void (*)(byte));
-    
-    // addCATGetFreq - registers a funtion that is called by the cat libary on resceipt of READ FREQUENCY
-    // command. The user functuion must return the current frequency as a long
-    //
-    // Example
-    // long catGetFreq() {
-    //   long freq = logic to tune the radio to freq
-    //   return freq;
-    // }
-    // radio.addCATGetFreq(catGetFreq); 
     void addCATGetFreq(long (*)(void));
-    
-
-    // addCATGetMode - registers a funtion that is called by the cat libary on resceipt of READ MODE
-    // command. The user functuion must return the current MODE USB or LSB as a byte
-    //
-    // Example
-    // byte catGetMode() {
-    //   byte mode = logic set mode to CAT_MODE_USB or CAT_MODE_LSB
-    //   return mode;
-    // }
-    // radio.addCATGetMode(catGetFreq); 
     void addCATGetMode(byte (*)(void));
-
-
-    // addCATGetPtt- registers a funtion that is called by the cat libary on resceipt of READ PTT
-    // command. The user functuion must return the current PTT state CAT_PTT_TX or CAT_PTT_RX as a byte
-    //
-    // Example
-    // byte catGetTxRx() {
-    //   byte ptt = logic set mode to CAT_PTT_TX or CAT_PTT_TX
-    //   return ptt;
-    // }
-    // radio.addCATGetPtt(catGetTxRx); 
     void addCATGetPtt(boolean (*)(void));
-    
-
-    // addCATGetSmeter - registers a funtion that is called by the cat libary on resceipt of READ SMETER
-    // command. The user functuion must return the current S-meter reading as byte
-    // S-meter values are in the range 0-16, 0-9 are S0-S9, 10-16 are S9+10 thru S9+60
-    //
-    // Example
-    // byte catGetSMeter() {
-    //   byte smeter = logic set smeter to a number from 0-16
-    //   return smeter;
-    // }
-    // radio.addCATGetSmeter(catGetSMeter); 
     void addCATSMeter(byte (*)(void));
 
-    // Set enabled to false to stop processing CAT commands
     boolean enabled     = true;
 
   private:
@@ -296,8 +172,8 @@ class IC746 {
     int cmdLength       = 0;
     long freq           = 0;
     void setFreq(void);
-    void sent(void);
     void send(byte *, int);
+    void sendResponse(byte *buf, int len);
     void sendAck(void);
     void sendNack(void);
     boolean readCmd(void);
@@ -313,7 +189,10 @@ class IC746 {
     void doSetMode();
     void doReadMode();
     void doMisc();
-    void doUnimplemented();
+    void doUnimplemented_1b();
+    void doUnimplemented_2b();
+    void doTuneStep();
+    void doAntSel();
 };
 
 #endif

@@ -1,6 +1,11 @@
 /*************************************************************************
    IC746 CAT Library, by KK4DAS, Dean Souleles
-
+   V1.1 2/3/202 
+      - various fixes, now works properly with OmniRig and flrig
+      - smeter now returns proper BCD code - calibrated to emulate ICOM responses
+      
+   V1.0 1/24/2021
+      - Initial build
    Inspired by:  ft857d CAT Library, by Pavel Milanes, CO7WT, pavelmc@gmail.com
 
    Emulates an ICOM 746 CAT functionality to work with all ham radio software that include CAT control
@@ -25,7 +30,7 @@
 
 //#define DEBUG_CAT
 #ifdef DEBUG_CAT
-//#define DEBUG_CAT_DETAIL
+#define DEBUG_CAT_DETAIL
 //#define DEBUG_CAT_SMETER
 #include <SoftwareSerial.h>
 SoftwareSerial catDebug(6, 7); // RX, TX
@@ -59,18 +64,38 @@ static FuncPtrVoid catSwapVfo;
 // The following are the array indedes within the command buffer for command elements that are sent with the command
 // or are where we put data to return to the conroller
 //
-#define CAT_IX_XCVR_ADDR   0
-#define CAT_IX_CTRL_ADDR   1
+#define CAT_IX_TO_ADDR     0
+#define CAT_IX_FROM_ADDR   1
 #define CAT_IX_CMD         2
 #define CAT_IX_SUB_CMD     3
 #define CAT_IX_FREQ        3   // Set Freq has no sub-command
 #define CAT_IX_MODE        3   // Get mode has no sub-command
+#define CAT_IX_TUNE_STEP   3   // Get step has no sub-command
+#define CAT_IX_ANT_SEL     3   // Get amt has no sub-command
 #define CAT_IX_PTT         4   // PTT RX/TX indicator
 #define CAT_IX_IF_FILTER   4   // IF Filter value
 #define CAT_IX_SMETER      4   // S Meter 0-255
 #define CAT_IX_SQUELCH     4   // Squelch 0=close, 1= open
 #define CAT_IX_ID          5
 #define CAT_IX_DATA        4   // Data following sub-comand
+
+// Lentgth of commands that request data 
+#define CAT_RD_LEN_NOSUB   3   //  3 bytes - 56 E0 cc
+#define CAT_RD_LEN_SUB     4   //  4 bytes - 56 E0 cc ss  (cmd, sub command)
+
+// Length of data responses
+#define CAT_SZ_SMETER      6   //  6 bytes - E0 56 15 02 nn nn 
+#define CAT_SZ_SQUELCH     5   //  5 bytes - E0 56 15 01 nn
+#define CAT_SZ_PTT         5   //  5 bytes - E0 56 1C 00 nn
+#define CAT_SZ_FREQ        8   //  8 bytes - E0 56 03 ff ff ff ff ff  (frequency in little endian BCD)
+#define CAT_SZ_MODE        5   //  5 bytes - E0 56 04 mm ff  (mode, then filter)
+#define CAT_SZ_IF_FILTER   5   //  5 bytes - E0 56 1A 03 nn
+#define CAT_SZ_TUNE_STEP   4   //  4 bytes - E0 56 10 nn
+#define CAT_SZ_ANT_SEL     4   //  4 bytes - E0 56 12 nn
+#define CAT_SZ_ID          5   //  5 bytes - E0 56 19 00 56    (returns RIG ID)
+#define CAT_SZ_UNIMP_1B    5   //  5 bytes - E0 56 NN SS 00    (unimplemented commands that require 1 data byte
+#define CAT_SZ_UNIMP_2B    6   //  6 bytes - EO 56 NN SS 00 00 (unimplemented commandds that required 2 data bytes
+
 
 
 /*
@@ -79,6 +104,7 @@ static FuncPtrVoid catSwapVfo;
 */
 void IC746::begin() {
   Serial.begin(9600, SERIAL_8N2);
+  while (!Serial);;
   Serial.flush();
 
 #ifdef DEBUG_CAT
@@ -176,6 +202,7 @@ void IC746::addCATVSet(void (*userFunc)(byte)) {
 //
 void IC746::send(byte *buf, int len) {
   int i;
+
   Serial.write(CAT_PREAMBLE);
   Serial.write(CAT_PREAMBLE);
 
@@ -183,6 +210,27 @@ void IC746::send(byte *buf, int len) {
     Serial.write(buf[i]);
   }
   Serial.write(CAT_EOM);
+
+#ifdef DEBUG_CAT_DETAIL
+  dbg = "sent: ";
+  dbg += String(len);
+  dbg += ": ";
+  for (int i = 0; i < len; i++) {
+    dbg += String(buf[i], HEX);
+    dbg += " ";
+  }
+  catDebug.println(dbg.c_str());
+#endif
+
+}
+
+//
+// sendResponse
+// 
+void IC746::sendResponse(byte *buf, int len) {
+  buf[CAT_IX_FROM_ADDR] = CAT_RIG_ADDR;
+  buf[CAT_IX_TO_ADDR] = CAT_CTRL_ADDR;
+  send(buf, len);
 }
 
 //
@@ -252,6 +300,18 @@ boolean IC746::readCmd() {
         switch (bt) {
 
           case CAT_EOM:        // end of message received, return for processing, reset state
+
+#ifdef DEBUG_CAT_DETAIL
+            dbg = "rcvd: ";
+            dbg += String(bytesRcvd);
+            dbg += ": ";
+            for (int i = 0; i < bytesRcvd; i++) {
+              dbg += String(cmdBuf[i], HEX);
+              dbg += " ";
+            }
+            catDebug.println(dbg.c_str());
+#endif
+
             send(cmdBuf, bytesRcvd);  // echo received packet for protocol
             cmdRcvd = true;
             rcvState = CAT_RCV_WAITING;
@@ -295,51 +355,15 @@ boolean IC746::readCmd() {
 // of "Open" to keep the protocol happly
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void IC746::doSmeter() {
-  switch (cmdBuf[CAT_IX_SUB_CMD]) {
-    case CAT_READ_SUB_SMETER:
-      if (catGetSmeter) {
-
-        const byte smap[] = {0, 20, 50, 70, 90, 110, 140, 150, 170, 180, 197, 201, 211, 216, 220, 230};
-        byte s;
-        s = catGetSmeter();
-        cmdBuf[CAT_IX_SMETER] = smap[s];
-
-  #ifdef DEBUG_CAT_SMETER
-        dbg = "doSmeter- s: ";
-        dbg += String(s);
-        dbg += " map: ";
-        dbg += String(smap[s]);
-        catDebug.println(dbg.c_str());
-  #endif
-        
-      } else {
-        cmdBuf[CAT_IX_SMETER] = 0;
-      }
-      send(cmdBuf, 5);
-      break;
-
-    case CAT_READ_SUB_SQL:        // Squelch condition 0=closed, 1=open
-      cmdBuf[CAT_IX_SQUELCH] = 1;
-      send(cmdBuf, 5);
-      break;
-  }
-}
-
-
-/*
-   BCD Version
-
   void IC746::doSmeter() {
   switch (cmdBuf[CAT_IX_SUB_CMD]) {
     case CAT_READ_SUB_SMETER:
       if (catGetSmeter) {
-
-        const byte smap[] = {0, 20, 50, 70, 90, 110, 140, 150, 170, 180, 197, 201, 211, 216, 220, 230};
+                          //S0  S1  S2  S3  S4  S5  S6  S7   S8   S9  +10  +20  +30  +40  +50  +60
+        const byte smap[] = {0, 15, 25, 40, 55, 65, 75, 90, 100, 120, 135, 150, 170, 190, 210, 241};
         byte s = catGetSmeter();
 
         SmetertoBCD(smap[s]);
-
   #ifdef DEBUG_CAT_DETAIL
         dbg = "doSmeter- s:";
         dbg += String(s);
@@ -357,16 +381,16 @@ void IC746::doSmeter() {
         cmdBuf[CAT_IX_SMETER] = 0;      // user has not supplied S Meter function - keep the protocol happy
         cmdBuf[CAT_IX_SMETER + 1] = 0;
       }
-      send(cmdBuf, 6);
+      sendResponse(cmdBuf, CAT_SZ_SMETER);
       break;
 
     case CAT_READ_SUB_SQL:        // Squelch condition 0=closed, 1=open
       cmdBuf[CAT_IX_SQUELCH] = 1;
-      send(cmdBuf, 5);
+      send(cmdBuf, CAT_SZ_SQUELCH);
       break;
   }
   }
-*/
+
 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -380,10 +404,10 @@ void IC746::doSmeter() {
 //      56 | E0 | 1C | 00 | 01 - Set Tx, trailing data bit 1 for Tx, 0 for Rx
 ////////////////////////////////////////////////////////////////////////////////////////////////////////
 void IC746::doPtt() {
-  if (cmdLength == 4) {  // Read request
+  if (cmdLength == CAT_RD_LEN_SUB) {  // Read request
     if (catGetPtt) {
       cmdBuf[CAT_IX_PTT] = catGetPtt();
-      send(cmdBuf, 5);
+      sendResponse(cmdBuf, CAT_SZ_PTT);
     }
   } else {               // Set request
     if (catSetPtt) {
@@ -409,6 +433,7 @@ void IC746::doSplit() {
       }
       break;
     case CAT_SPLIT_ON:
+    case CAT_SIMPLE_DUP:
       if (catSplit) {
         catSplit(true);
       }
@@ -428,8 +453,9 @@ void IC746::doSplit() {
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
 void IC746::doSetVfo() {
 
-  if (cmdLength == 4) {  // No sub-command - sets VFO Tuning vice memory tuning
+  if (cmdLength == CAT_RD_LEN_NOSUB) {  // No sub-command - sets VFO Tuning vice memory tuning
     sendAck();           // Memory tuning is not implemented so send ack to keep protocol happy
+    return;
   }
 
   switch (cmdBuf[CAT_IX_SUB_CMD]) {
@@ -472,7 +498,7 @@ void IC746::doSetFreq() {
 void IC746::doReadFreq() {
   if (catGetFreq) {
     FreqtoBCD(catGetFreq());  // get the frequency, convert to BCD and stuff it in the response buffer
-    send(cmdBuf, 8);
+    sendResponse(cmdBuf, CAT_SZ_FREQ);
   }
 }
 
@@ -499,7 +525,8 @@ void IC746::doSetMode() {
 void IC746::doReadMode() {
   if (catGetMode) {
     cmdBuf[CAT_IX_MODE] = catGetMode();
-    send(cmdBuf, 4);
+    cmdBuf[CAT_IX_MODE+1] = CAT_MODE_FILTER1;  // protocol filter - return reasonable value
+    sendResponse(cmdBuf, CAT_SZ_MODE);
   }
 }
 
@@ -511,17 +538,13 @@ void IC746::doReadMode() {
 // The code sends a hard-coded response since most homebrew rigs won't have such a setting
 // but programs like WSJTX and FLDIGI request it
 //
-// The value of 29 was determined by reviewing the IC-7600 CI-V documentation is more complete than the IC-746 doc.
-// The value of 29 equates to 2.5KHz which should be a reasonable value.
-//
 // Commands that "set" values are replied to with an ACK message
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
 void IC746::doMisc() {
   switch (cmdBuf[CAT_IX_SUB_CMD]) {
     case CAT_READ_IF_FILTER:
-      //      cmdBuf[CAT_IX_IF_FILTER] = 29;   // Return a valid value - 29 represents 2.5K filter for SSB
       cmdBuf[CAT_IX_IF_FILTER] = 0;
-      send(cmdBuf, 5);
+      sendResponse(cmdBuf, CAT_SZ_IF_FILTER);
       break;
 
     // Not implemented
@@ -534,6 +557,10 @@ void IC746::doMisc() {
   }
 }
 
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////
+//                       UNIMPLEMENTED COMMAND STUBS
+///////////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
 // doUnimplemented() - reasonable processing for features that are not fully implemented
 //
@@ -541,19 +568,48 @@ void IC746::doMisc() {
 //
 // These following commands are used to both set and read various parameters in the IC-746 that are not
 // typically implemented in a homebrew transceiver.
-// Commands requesting the state of various parameters require a data byte returned.
+// Commands requesting the state of various parameters require one or two data bytes returned.
 // We return zero in all cases which typically means the requsted feature is OFF - eg AGC, NB, VOX, etc.
 // Command that "set" various parameters only require an ACK reply
-// A "read" request has no data byte and is one byte shorter than a set request
+// A "read" request has no data byte and is one byte shorter than a set request  (length =4)
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
-void IC746::doUnimplemented() {
-  if (cmdLength == 4) {      // Read request
-    cmdBuf[CAT_IX_PTT] = 0;  // return 0 for all read requests
-    send(cmdBuf, 5);
+void IC746::doUnimplemented_1b() {
+  if (cmdLength == CAT_RD_LEN_SUB) {        // Read request
+    cmdBuf[CAT_IX_DATA] = 0;   // return 0 for all read requests
+    sendResponse(cmdBuf, CAT_SZ_UNIMP_1B);
   } else {                   // Set parameter request
     sendAck();               // Send an acknowledgement to keep the protocol happy
   }
 }
+
+void IC746::doUnimplemented_2b() {
+  if (cmdLength == CAT_RD_LEN_SUB) {        // Read request
+    cmdBuf[CAT_IX_DATA] = 0;   // return 0 for all read requests
+    cmdBuf[CAT_IX_DATA+1] = 0; 
+    sendResponse(cmdBuf, CAT_SZ_UNIMP_2B);
+  } else {                   // Set parameter request
+    sendAck();               // Send an acknowledgement to keep the protocol happy
+  }
+}
+
+void IC746::doTuneStep() {
+  if (cmdLength == CAT_RD_LEN_NOSUB) {             // Read request
+    cmdBuf[CAT_IX_TUNE_STEP] = 0;   // return 0 for all read requests
+    sendResponse(cmdBuf, CAT_SZ_TUNE_STEP);
+  } else {                   // Set parameter request
+    sendAck();               // Send an acknowledgement to keep the protocol happy
+  }
+}
+
+void IC746::doAntSel() {
+  if (cmdLength == CAT_RD_LEN_NOSUB) {           // Read request
+    cmdBuf[CAT_IX_ANT_SEL] = 0;   // return 0 for all read requests
+    sendResponse(cmdBuf, CAT_SZ_ANT_SEL);
+  } else {                   // Set parameter request
+    sendAck();               // Send an acknowledgement to keep the protocol happy
+  }
+}
+
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
 //  check() - process commands from CAT controller, should be called from the sketch main loop
@@ -566,7 +622,7 @@ void IC746::check() {
   // Receive a CAT Command
   if (!readCmd()) return;
 
-
+/*
 #ifdef DEBUG_CAT_DETAIL
   dbg = "rcvd: ";
   dbg += String(cmdLength);
@@ -577,7 +633,7 @@ void IC746::check() {
   }
   catDebug.println(dbg.c_str());
 #endif
-
+*/
   // Process the command - command opcode is at CAT_IX_CMD location in command buffer
   switch (cmdBuf[CAT_IX_CMD]) {
 
@@ -619,16 +675,28 @@ void IC746::check() {
 
     case CAT_READ_ID:
       cmdBuf[CAT_IX_ID] = CAT_RIG_ADDR;      // Send back the transmitter ID
-      send(cmdBuf, 5);
+      send(cmdBuf, CAT_SZ_ID);
       break;
 
-    // Unimplemented commands that request data from the rig - keep the protocol happy
-    case CAT_ATT:
-    case CAT_SET_PARAMS2:
+    // Unimplemented commands that request one or two bytes of data from the rig - keep the protocol happy
+    case CAT_SET_RD_STEP:
+      doTuneStep();
+      break;
+      
+    case CAT_SET_RD_ANT:
+      doAntSel();
+      break;
+      
+    case CAT_SET_RD_ATT:
+    case CAT_SET_RD_PARAMS2:
+      doUnimplemented_1b();
+      break;
+
+    case CAT_SET_RD_PARAMS1:
     case CAT_READ_OFFSET:
-      doUnimplemented();
+      doUnimplemented_2b();
       break;
-
+      
     default:                // For all other commands respond with an ACK
 #ifdef DEBUG_CAT
       dbg = "unimp cmd: ";
@@ -698,9 +766,9 @@ void IC746::SmetertoBCD(byte s) {
 
   ones =     byte(s % 10);
   tens =     byte((s / byte(10)) % 10);
-  cmdBuf[CAT_IX_SMETER] = byte((tens << 4)) | ones;
+  cmdBuf[CAT_IX_SMETER+1] = byte((tens << 4)) | ones;
 
   hund =      byte((s / byte(100)) % 10);
-  cmdBuf[CAT_IX_SMETER + 1] = hund;
+  cmdBuf[CAT_IX_SMETER] = hund;
 
 }
