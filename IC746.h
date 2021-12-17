@@ -1,6 +1,9 @@
 /*************************************************************************
    IC746 CAT Library, by KK4DAS, Dean Souleles
-   V1.1 2/3/202 
+   V1.0.2 12/17/2021
+      - Send NACK on undocmented command / fix for lates WSJTX hamlib
+      
+   V1.0.1 2/3/2021
       - various fixes, now works properly with OmniRig and flrig
       - smeter now returns proper BCD code - calibrated to emulate ICOM responses
       
