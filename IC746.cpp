@@ -1,6 +1,9 @@
  *************************************************************************
    IC746 CAT Library, by KK4DAS, Dean Souleles
-   V1.1 2/3/202 
+   V1.0.2 12/17/2021
+      - Send NACK on receipt of undocumented commands / fix for latest WSJTX Hamlib
+      
+   V1.0.1 2/3/2021
       - various fixes, now works properly with OmniRig and flrig
       - smeter now returns proper BCD code - calibrated to emulate ICOM responses
       
@@ -697,7 +700,7 @@ void IC746::check() {
       doUnimplemented_2b();
       break;
       
-    default:                // For all other commands respond with an ACK
+    default:                // For all other commands respond with an NACK
 #ifdef DEBUG_CAT
       dbg = "unimp cmd: ";
       dbg += String(cmdBuf[CAT_IX_CMD], HEX);
