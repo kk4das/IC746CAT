@@ -1,4 +1,4 @@
-/*************************************************************************
+ *************************************************************************
    IC746 CAT Library, by KK4DAS, Dean Souleles
    V1.1 2/3/202 
       - various fixes, now works properly with OmniRig and flrig
@@ -703,7 +703,7 @@ void IC746::check() {
       dbg += String(cmdBuf[CAT_IX_CMD], HEX);
       catDebug.println(dbg.c_str());
 #endif
-      sendAck();
+      sendNack();
       break;
   }
 }
