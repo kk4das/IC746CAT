@@ -1,4 +1,4 @@
- *************************************************************************
+ /*************************************************************************
    IC746 CAT Library, by KK4DAS, Dean Souleles
    V1.0.2 12/17/2021
       - Send NACK on receipt of undocumented commands / fix for latest WSJTX Hamlib
