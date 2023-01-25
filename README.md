@@ -35,6 +35,13 @@ So far we have tested support for the following CAT capable software:
 
 If you use find this library does not work with any particular CAT enabled software please let me know via the "Issues" tab on Github.
 
+## Release Notes ##
+Version 1.3 1/24/2023 - support for frequencies 100MHz and above.  Support for setting and getting all defined IC746 modes.
+
+Version 1.2 - Corrects bug that was causing new version of WSJTX not to connect.  Sends NACK on all unsupported commands,
+
+Version 1.0 - Initial release.
+
 ## Known limitations ##
 
 Split frequency handling in WSJTX does not work as expected.  The work-around is to configure WSJTX Split for either NONE or "Fake it".  Split functionality has been tested and works as expected using CatBkt.  

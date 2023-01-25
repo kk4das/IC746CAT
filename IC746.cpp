@@ -1,9 +1,16 @@
- /*************************************************************************
+/*************************************************************************
    IC746 CAT Library, by KK4DAS, Dean Souleles
-   V1.0.2 12/17/2021
-      - Send NACK on receipt of undocumented commands / fix for latest WSJTX Hamlib
-      
-   V1.0.1 2/3/2021
+   V1.3 1/21/2023
+      - Included all defined modes in Get/Set Mode (thanks to Mike, KA4CDN)
+      - Fix to allow frequencies greater than 100MHz -(thanks to Bob, KA1GT)
+
+   V1.2 10/22/2021
+      - Fixes bug that caused "WSJTX Rig Control Error"  for versions after 2.2.2
+      - The problem was caused by an unsupported CIV command being sent by WSJTX
+      - This fix responds to unimplemented commands with a NACK instead of an ACK
+      - Bug was reported on the WSJTX groups board.
+
+   V1.1 2/3/2021 
       - various fixes, now works properly with OmniRig and flrig
       - smeter now returns proper BCD code - calibrated to emulate ICOM responses
       
@@ -36,10 +43,11 @@
 #define DEBUG_CAT_DETAIL
 //#define DEBUG_CAT_SMETER
 #include <SoftwareSerial.h>
-SoftwareSerial catDebug(6, 7); // RX, TX
+SoftwareSerial catDebug(11,12); // RX, TX
 String dbg;
 #endif
 
+//extern void displayBanner(String s);
 
 // User supplied calback function work variables, must be static
 static FuncPtrBoolean catSplit;
@@ -107,8 +115,8 @@ static FuncPtrVoid catSwapVfo;
 */
 void IC746::begin() {
   Serial.begin(9600, SERIAL_8N2);
-  while (!Serial);;
-  Serial.flush();
+//  while (!Serial);;
+//  Serial.flush();
 
 #ifdef DEBUG_CAT
   catDebug.begin(9600);
@@ -127,10 +135,14 @@ void IC746::begin(long br, int mode) {
       SERIAL_7O1; SERIAL_8O1; SERIAL_5O2; SERIAL_6O2; SERIAL_7O2; SERIAL_8O2
   */
   Serial.begin(br, mode);
-  Serial.flush();
+ // Serial.flush();
 #ifdef DEBUG_CAT
   catDebug.begin(9600);
   dbg = "CAT Debug Ready";
+  catDebug.println(dbg.c_str());
+  delay(1000);
+  catDebug.println(dbg.c_str());
+  catDebug.println(dbg.c_str());
   catDebug.println(dbg.c_str());
 #endif
 }
@@ -240,7 +252,7 @@ void IC746::sendResponse(byte *buf, int len) {
 // sendAck() - send back hard-code acknowledge message
 //
 void IC746::sendAck() {
-  byte ack[] = {CAT_CTRL_ADDR, CAT_RIG_ADDR, CAT_ACK};
+  byte ack[] = {CAT_RIG_ADDR, CAT_CTRL_ADDR, CAT_ACK};
   send(ack, 3);
 }
 
@@ -248,7 +260,8 @@ void IC746::sendAck() {
 // sendNack() - send back hard-code negative-acknowledge message
 //
 void IC746::sendNack() {
-  byte nack[] = {CAT_CTRL_ADDR, CAT_RIG_ADDR, CAT_NACK};
+  byte nack[] = {CAT_RIG_ADDR, CAT_CTRL_ADDR, CAT_NACK};
+//  displayBanner(String("Nack"));
   send(nack, 3);
 }
 
@@ -500,6 +513,7 @@ void IC746::doSetFreq() {
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
 void IC746::doReadFreq() {
   if (catGetFreq) {
+//    displayBanner(String("Read Freq"));
     FreqtoBCD(catGetFreq());  // get the frequency, convert to BCD and stuff it in the response buffer
     sendResponse(cmdBuf, CAT_SZ_FREQ);
   }
@@ -507,16 +521,22 @@ void IC746::doReadFreq() {
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
 // doSetMode() - process the CAT_SET_MODE command
-// Call the user function to put the rig into the requested mode.  Only USB or LSB are supported.
+// Call the user function to put the rig into the requested mode. 
+// The rig must handle all of the possible modes
+//   CAT_MODE_LSB
+//   CAT_MODE_USB
+//   CAT_MODE_AM:
+//   CAT_MODE_CW - (LSB)
+//   CAT_MODE_RTTY - (LSB)
+//   CAT_MODE_FM
+//   CAT_MODE_CW_R - (Reverse - USB)
+//   CAT_MODE_RTTY_R - (Reverse - LSB)
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
 void IC746::doSetMode() {
   if (catSetMode) {
-    switch (cmdBuf[CAT_IX_SUB_CMD]) {
-      case CAT_MODE_LSB:
-      case CAT_MODE_USB:
-        catSetMode(cmdBuf[CAT_IX_SUB_CMD]);
-        break;
-    }
+
+    catSetMode(cmdBuf[CAT_IX_SUB_CMD]);
+   
   }
   sendAck();
 }
@@ -702,8 +722,12 @@ void IC746::check() {
       
     default:                // For all other commands respond with an NACK
 #ifdef DEBUG_CAT
+      String dbg;
       dbg = "unimp cmd: ";
       dbg += String(cmdBuf[CAT_IX_CMD], HEX);
+      dbg += " ";
+      dbg += String(cmdBuf[CAT_IX_SUB_CMD], HEX);
+//      displayBanner(dbg);
       catDebug.println(dbg.c_str());
 #endif
       sendNack();
@@ -737,12 +761,15 @@ long IC746::BCDtoFreq() {
   freq += 100000L * (cmdBuf[CAT_IX_FREQ + 2] >> 4);
   freq += 1000000L * (cmdBuf[CAT_IX_FREQ + 3] & 0xf);
   freq += 10000000L * (cmdBuf[CAT_IX_FREQ + 3] >> 4);
+  freq += 100000000L * (cmdBuf[CAT_IX_FREQ + 4] & 0xf);
+  freq += 1000000000L * (cmdBuf[CAT_IX_FREQ + 4] >> 4);
+
 
   return freq;
 }
 
 void IC746::FreqtoBCD(long freq) {
-  byte ones, tens, hund, thou, ten_thou, hund_thou, mil, ten_mil;
+  byte ones, tens, hund, thou, ten_thou, hund_thou, mil, ten_mil, hund_mil, thou_mil;
 
   ones =     byte(freq % 10);
   tens =     byte((freq / 10L) % 10);
@@ -757,11 +784,12 @@ void IC746::FreqtoBCD(long freq) {
   cmdBuf[CAT_IX_FREQ + 2] = byte((hund_thou << 4)) | ten_thou;
 
   mil =       byte((freq / 1000000L) % 10);
-  ten_mil =   byte(freq / 10000000L);
+  ten_mil =   byte(freq  / 10000000L) % 10; 
   cmdBuf[CAT_IX_FREQ + 3] = byte((ten_mil << 4)) | mil;
 
-  cmdBuf[CAT_IX_FREQ + 4] = 0; // fixed
-
+  hund_mil = byte((freq / 100000000L) % 10);
+  thou_mil = byte(freq  / 1000000000L % 10); // Allow frequencies up to 9999.999999 MHz to be enterd
+  cmdBuf[CAT_IX_FREQ + 4] = byte((thou_mil << 4)) | hund_mil;
 }
 
 void IC746::SmetertoBCD(byte s) {

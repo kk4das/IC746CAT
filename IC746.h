@@ -1,9 +1,14 @@
 /*************************************************************************
    IC746 CAT Library, by KK4DAS, Dean Souleles
-   V1.0.2 12/17/2021
-      - Send NACK on undocmented command / fix for lates WSJTX hamlib
-      
-   V1.0.1 2/3/2021
+   V1.3 1/24/2023
+      - Added support for frequencies 100MHz and above.
+      - Added support for setting and getting all IC-746 defined MODES
+   
+   V1.2 
+      - Fixes bug that caused WSJTX not to connect.  Sends NACK on all unsupported
+      - commands. (Requires lastes hamlib build with WSJTX)
+   
+   V1.1 2/3/2021 
       - various fixes, now works properly with OmniRig and flrig
       - smeter now returns proper BCD code - calibrated to emulate ICOM responses
       
@@ -84,12 +89,13 @@
 // Mode Subcommand
 #define CAT_MODE_LSB        0x00
 #define CAT_MODE_USB        0x01
-#define CAT_MODE_AM         0x02 // Not implemented
-#define CAT_MODE_CW         0x03 // Not implemented
-#define CAT_MODE_RTTY       0x04 // Not implemented
-#define CAT_MODE_FM         0x05 // Not implemented
-#define CAT_MODE_CW_R       0x06 // Not implemented
-#define CAT_MODE_RTTY_R     0x07 // Not implemented
+#define CAT_MODE_AM         0x02 
+#define CAT_MODE_CW         0x03 // LSB CW
+#define CAT_MODE_RTTY       0x04 // LSB RTTY
+#define CAT_MODE_FM         0x05 
+#define CAT_MODE_CW_R       0x07 // Reverse CW - USB
+#define CAT_MODE_RTTY_R     0x08 // Reverse RTTY - USB
+
 #define CAT_MODE_FILTER1    0x01 // Required for "read mode"
 
 // VFO Subcommand
